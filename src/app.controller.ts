@@ -71,8 +71,8 @@ export class AppController {
     @UploadedFiles()
     files: { video: Express.Multer.File[]; thumbnail: Express.Multer.File[] },
   ): Promise<Video> {
-    const videoFile = files.video[0];
-    const thumbnailFile = files.thumbnail[0];
+    const videoFile = files.video?.[0];
+    const thumbnailFile = files.thumbnail?.[0];
 
     if (!videoFile || !thumbnailFile) {
       throw new BadRequestException('Both video and thumbnail are required');
