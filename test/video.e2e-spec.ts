@@ -1,5 +1,6 @@
 import { HttpStatus, INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { Video } from '@prisma/client';
 import { AppModule } from '@src/app.module';
 import { PrismaService } from '@src/prisma.service';
 import fs from 'fs';
@@ -110,6 +111,41 @@ describe('VideoController (e2e)', () => {
           error: 'Bad Request',
           statusCode: HttpStatus.BAD_REQUEST,
         });
+    });
+  });
+
+  describe('/streaming/:videoId (GET)', () => {
+    it('should stream a video', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const { body: sampleVideo }: { body: Video } = await request(
+        app.getHttpServer(),
+      )
+        .post('/video')
+        .attach('video', './test/fixtures/sample.mp4')
+        .attach('thumbnail', './test/fixtures/sample.jpg')
+        .field('title', 'Test Video')
+        .field('description', 'Test Description');
+
+      const fileSize = 1430145;
+      const range = `bytes=0-${fileSize - 1}`;
+
+      const response = await request(app.getHttpServer())
+        .get(`/streaming/${sampleVideo.id}`)
+        .set('Range', range)
+        .expect(HttpStatus.PARTIAL_CONTENT);
+
+      expect(response.headers['content-range']).toBe(
+        `bytes 0-${fileSize - 1}/${fileSize}`,
+      );
+      expect(response.headers['accept-ranges']).toBe('bytes');
+      expect(response.headers['content-length']).toBe(fileSize.toString());
+      expect(response.headers['content-type']).toBe('video/mp4');
+    });
+
+    it('should return 404 if video is not found', async () => {
+      await request(app.getHttpServer())
+        .get('/streaming/123')
+        .expect(HttpStatus.NOT_FOUND);
     });
   });
 });
